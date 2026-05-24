@@ -1,5 +1,11 @@
 {
-    "chatCommandPrefix": "senate!",
-    "senatorRoleID": 1507857678108463247,
+    "senate": {
+        "roleId": "1507857678108463247",
+        "channelId": "1507867847718731957"
+    },
+    "forum": {
+        "roleId": "1508174314581786644",
+        "channelId": "1508173584236024039"
+    },
     "test": true
 }
