@@ -58,13 +58,13 @@ const commands = [
 const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
 await rest.put(Routes.applicationCommands(BOT_APPLICATION_ID), { body: commands });
 
-function idMaker(whatToHash: any, creationTimestamp: number) {
+function hasher(whatToHash: any, sliceNum: number) {
     const hashed = new Bun.CryptoHasher('sha256')
         .update(whatToHash)
         .digest('hex')
-        .slice(0, 16);
+        .slice(0, sliceNum);
 
-    return `${hashed}-${creationTimestamp}`;
+    return `${hashed}`;
 }
 
 async function jsonWrite(path: string, object: object) {
@@ -118,7 +118,7 @@ async function motion(interaction: ChatInputCommandInteraction) {
             flags: MessageFlags.Ephemeral
         })
     } else {
-        const motionId = idMaker(`${content}${interaction.channelId}${interaction.user.id}`, interaction.createdTimestamp)
+        const motionId = `${hasher(`${content}${interaction.channelId}${interaction.user.id}`, 8)}-${interaction.createdTimestamp}`
         if (
             saveNewMotion(motionId, type, content, interaction)
         ) {
