@@ -7,13 +7,16 @@ import {
     SlashCommandBuilder,
     ChatInputCommandInteraction,
     MessageFlags,
-    TextChannel
+    TextChannel,
+    Faces
 } from "discord.js";
 import { file } from "bun";
 
 const BOT_TOKEN = await file("./TOKEN").text();
 const BOT_APPLICATION_ID = await file("./APPLICATION_ID").text();
 const CONFIG = JSON.parse(await file("config.json").text());
+
+const issueMsg = "**Sorry, it seems that there was an issue 😦**"
 
 const client = new Client({
     intents: [
@@ -64,6 +67,43 @@ function idMaker(whatToHash: any, creationTimestamp: number) {
     return `${hashed}-${creationTimestamp}`;
 }
 
+async function jsonWrite(path: string, object: object) {
+    const objectJson = JSON.parse(await file(path).text())
+    objectJson.push(object);
+    await Bun.write(path, JSON.stringify(object, null, 2))
+}
+
+function saveNewMotion(motionId: string, motionType: string, motionContent: string, interaction: ChatInputCommandInteraction) {
+
+    let votes;
+    switch (motionType) {
+        case "senate":
+            votes = { for: [], against: [], abstaining: [] };
+            break;
+        case "forum":
+            votes = { for: 0, against: 0, voted: [] };
+            break;
+    }
+
+    const newMotion = {
+        id: motionId,
+        info: {
+            type: motionType,
+            content: {
+                current: motionContent,
+                history: [motionContent]
+            },
+            creationDate: interaction.createdAt,
+            authorId: interaction.user.id,
+            votes
+        }
+    }
+
+    jsonWrite("./motions/active.json", newMotion)
+
+    return true
+}
+
 async function motion(interaction: ChatInputCommandInteraction) {
     const type: string = interaction.options.getString('type', true);
     const content: string = interaction.options.getString('content', true)
@@ -74,16 +114,26 @@ async function motion(interaction: ChatInputCommandInteraction) {
     if (!motionChannel || !(motionChannel instanceof TextChannel)) {
         console.log(`Failed to send a motion!\n    by '${interaction.user.displayName}' (${interaction.user.id})\n    to '${type}' type channel ('${motionChannelId}')\n    containing '${content}'`)
         await interaction.reply({
-            content: '**Sorry, it seems that there was an issue 😦**',
+            content: issueMsg,
             flags: MessageFlags.Ephemeral
         })
     } else {
         const motionId = idMaker(`${content}${interaction.channelId}${interaction.user.id}`, interaction.createdTimestamp)
-        await motionChannel.send(`<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`)
-        await interaction.reply({
-            content: `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`,
-            flags: MessageFlags.Ephemeral
-        })
+        if (
+            saveNewMotion(motionId, type, content, interaction)
+        ) {
+            await motionChannel.send(`<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`)
+            await interaction.reply({
+                content: `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`,
+                flags: MessageFlags.Ephemeral
+            })
+        } else (
+            await interaction.reply({
+                content: issueMsg,
+                flags: MessageFlags.Ephemeral
+            })
+        )
+
     }
 }
 
