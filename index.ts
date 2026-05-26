@@ -28,6 +28,7 @@ motionsDb.run(`
         history     TEXT NOT NULL,
         creation_date TEXT NOT NULL,
         author_id   TEXT NOT NULL,
+        voting_open INTEGER NOT NULL,
         votes       TEXT NOT NULL
     )
 `);
@@ -100,8 +101,8 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
     }
 
     const stmt = motionsDb.prepare(`
-        INSERT INTO active_motions (id, type, content, history, creation_date, author_id, votes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO active_motions (id, type, content, history, creation_date, author_id, voting_open, votes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -111,6 +112,7 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
         JSON.stringify([motionContent]),
         interaction.createdAt.toISOString().replace("T", " ").replace("Z", ""),
         interaction.user.id,
+        false,
         JSON.stringify(votes)
     )
 
