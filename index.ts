@@ -79,7 +79,6 @@ const commands = [
         .addStringOption(option => option
             .setName("type")
             .setDescription("Is this motion limited to Senators or open to the Forum?")
-            .setRequired(false)
             .addChoices(
                 { name: "Senate", value: "senate" },
                 { name: "Forum", value: "forum" }
@@ -144,6 +143,21 @@ const commands = [
             .addUserOption(option => option
                 .setName("author")
                 .setDescription("Search by the motion's author")
+            )
+        )
+        .addSubcommandGroup(group => group
+            .setName("by")
+            .setDescription("Serach for a specific motion by it's Motion ID")
+            .addSubcommand(sub => sub
+                .setName("id")
+                .setDescription("Serach for a specific motion by it's Motion ID")
+                .addStringOption(option => option
+                    .setName("id")
+                    .setDescription("Motion ID")
+                    .setRequired(true)
+                    .setMinLength(8)
+                    .setMaxLength(20)
+                )
             )
         )
 ].map((scmd) => scmd.toJSON());
