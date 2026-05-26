@@ -156,7 +156,7 @@ const commands = [
                     .setDescription("Motion ID")
                     .setRequired(true)
                     .setMinLength(8)
-                    .setMaxLength(20)
+                    .setMaxLength(100)
                 )
             )
         )
