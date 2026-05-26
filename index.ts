@@ -10,12 +10,27 @@ import {
     TextChannel
 } from "discord.js";
 import { file } from "bun";
+import { Database } from "bun:sqlite";
 
 const BOT_TOKEN = await file("./TOKEN").text();
 const BOT_APPLICATION_ID = await file("./APPLICATION_ID").text();
 const CONFIG = JSON.parse(await file("config.json").text());
 
 const issueMsg = "**Sorry, it seems that there was an issue 😦**"
+
+const motionsDb = new Database("./motions.db");
+
+motionsDb.run(`
+    CREATE TABLE IF NOT EXISTS active_motions (
+        id          TEXT PRIMARY KEY,
+        type        TEXT NOT NULL,
+        content     TEXT NOT NULL,
+        history     TEXT NOT NULL,
+        creation_date TEXT NOT NULL,
+        author_id   TEXT NOT NULL,
+        votes       TEXT NOT NULL
+    )
+`);
 
 const client = new Client({
     intents: [
@@ -84,21 +99,20 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
             break;
     }
 
-    const newMotion = {
-        id: motionId,
-        info: {
-            type: motionType,
-            content: {
-                current: motionContent,
-                history: [motionContent]
-            },
-            creationDate: interaction.createdAt,
-            authorId: interaction.user.id,
-            votes
-        }
-    }
+    const stmt = motionsDb.prepare(`
+        INSERT INTO active_motions (id, type, content, history, creation_date, author_id, votes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
 
-    jsonWrite("./motions/active.json", newMotion)
+    stmt.run(
+        motionId,
+        motionType,
+        motionContent,
+        JSON.stringify([motionContent]),
+        interaction.createdAt.toISOString().replace("T", " ").replace("Z", ""),
+        interaction.user.id,
+        JSON.stringify(votes)
+    )
 
     return true
 }
