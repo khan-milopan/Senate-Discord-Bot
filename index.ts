@@ -23,6 +23,7 @@ const issueMsg = "**Sorry, it seems that there was an issue 😦**"
 
 const motionsDb = new Database("./motions.db");
 
+
 motionsDb.run(`
     CREATE TABLE IF NOT EXISTS active_motions (
         id          TEXT PRIMARY KEY,
@@ -75,6 +76,16 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
 await rest.put(Routes.applicationCommands(BOT_APPLICATION_ID), { body: commands });
+
+function updateActiveMotions() {
+    const activeMotions = motionsDb.query("SELECT id FROM active_motions").all();
+    return activeMotions;
+};
+let activeMotions = updateActiveMotions();
+console.log(activeMotions);
+
+
+// Commands and interactions bellow
 
 function hasher(whatToHash: any, sliceNum: number) {
     const hashed = new Bun.CryptoHasher('sha256')
@@ -139,7 +150,7 @@ function voteButtons(votingOpen: boolean, abstain: boolean) {
         .setLabel("Vote For")
         .setStyle(ButtonStyle.Success)
         .setDisabled(votingOpen ? false : true);
-    
+
     const againstButton = new ButtonBuilder()
         .setCustomId("against")
         .setLabel("Vote Against")
@@ -151,7 +162,7 @@ function voteButtons(votingOpen: boolean, abstain: boolean) {
         .setLabel("Abstain")
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(votingOpen ? false : true);
-    
+
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
         forButton,
         againstButton,
@@ -188,7 +199,7 @@ async function motion(interaction: ChatInputCommandInteraction) {
             const abstain = type === "senate" ? true : false;
             await motionChannel.send({
                 content: `<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`,
-                components: [ voteButtons(false, abstain) ]
+                components: [voteButtons(false, abstain)]
             })
             await interaction.reply({
                 content: `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`,
