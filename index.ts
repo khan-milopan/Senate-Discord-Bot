@@ -10,7 +10,8 @@ import {
     TextChannel,
     ButtonBuilder,
     ButtonStyle,
-    ActionRowBuilder
+    ActionRowBuilder,
+    Options
 } from "discord.js";
 import { file } from "bun";
 import { Database } from "bun:sqlite";
@@ -34,6 +35,18 @@ motionsDb.run(`
         author_id   TEXT NOT NULL,
         voting_open INTEGER NOT NULL,
         votes       TEXT NOT NULL
+    )
+`);
+motionsDb.run(`
+    CREATE TABLE IF NOT EXISTS archived_motions (
+        id          TEXT PRIMARY KEY,
+        type        TEXT NOT NULL,
+        content     TEXT NOT NULL,
+        history     TEXT NOT NULL,
+        creation_date TEXT NOT NULL,
+        author_id   TEXT NOT NULL,
+        votes       TEXT NOT NULL,
+        achive_comment TEXT NOT NULL
     )
 `);
 
@@ -71,6 +84,67 @@ const commands = [
                 { name: "Senate", value: "senate" },
                 { name: "Forum", value: "forum" }
             )
+        ),
+    new SlashCommandBuilder()
+        .setName("query")
+        .setDescription("Searches the database for active or archived motions")
+        .addSubcommand(sub => sub
+            .setName("active")
+            .setDescription("Search the database for active motions")
+            .addStringOption(option => option
+                .setName("content")
+                .setDescription("Search by content")
+            )
+            .addStringOption(option => option
+                .setName("type")
+                .setDescription("Search by type")
+                .addChoices(
+                    { name: "Senate", value: "senate" },
+                    { name: "Forum", value: "forum" },
+                    { name: "Both", value: "both" }
+                )
+            )
+            .addStringOption(option => option
+                .setName("before")
+                .setDescription("Search before date and time (Format: YEAR-MONTH-DAY HOUR:MINUTE)")
+            )
+            .addStringOption(option => option
+                .setName("after")
+                .setDescription("Search after date and time (Format: YEAR-MONTH-DAY HOUR:MINUTE)")
+            )
+            .addUserOption(option => option
+                .setName("author")
+                .setDescription("Search by the motion's author")
+            )
+        )
+        .addSubcommand(sub => sub
+            .setName("archived")
+            .setDescription("Search the database for archived motions")
+            .addStringOption(option => option
+                .setName("content")
+                .setDescription("Search by content")
+            )
+            .addStringOption(option => option
+                .setName("type")
+                .setDescription("Search by type")
+                .addChoices(
+                    { name: "Senate", value: "senate" },
+                    { name: "Forum", value: "forum" },
+                    { name: "Both", value: "both" }
+                )
+            )
+            .addStringOption(option => option
+                .setName("before")
+                .setDescription("Search before date and time (Format: YEAR-MONTH-DAY HOUR:MINUTE)")
+            )
+            .addStringOption(option => option
+                .setName("after")
+                .setDescription("Search after date and time (Format: YEAR-MONTH-DAY HOUR:MINUTE)")
+            )
+            .addUserOption(option => option
+                .setName("author")
+                .setDescription("Search by the motion's author")
+            )
         )
 ].map((scmd) => scmd.toJSON());
 
@@ -79,7 +153,7 @@ await rest.put(Routes.applicationCommands(BOT_APPLICATION_ID), { body: commands 
 
 function updateActiveMotions() {
     const activeMotions = motionsDb.query("SELECT id FROM active_motions").all();
-    return activeMotions;
+    return activeMotions.map(item => item.id);
 };
 let activeMotions = updateActiveMotions();
 console.log(activeMotions);
