@@ -7,8 +7,7 @@ import {
     SlashCommandBuilder,
     ChatInputCommandInteraction,
     MessageFlags,
-    TextChannel,
-    Faces
+    TextChannel
 } from "discord.js";
 import { file } from "bun";
 
@@ -38,20 +37,20 @@ const commands = [
         .setName("motion")
         .setDescription("Starts a motion.")
         .addStringOption(option => option
-            .setName("type")
-            .setDescription("Is this motion limited to Senators or open to the Forum?")
-            .setRequired(true)
-            .addChoices(
-                { name: "Senate", value: "senate" },
-                { name: "Forum", value: "forum" }
-            )
-        )
-        .addStringOption(option => option
             .setName("content")
             .setDescription("Specify the content of the motion, what is it that you're proposing?")
             .setRequired(true)
             .setMinLength(10)
             .setMaxLength(1000)
+        )
+        .addStringOption(option => option
+            .setName("type")
+            .setDescription("Is this motion limited to Senators or open to the Forum?")
+            .setRequired(false)
+            .addChoices(
+                { name: "Senate", value: "senate" },
+                { name: "Forum", value: "forum" }
+            )
         )
 ].map((scmd) => scmd.toJSON());
 
@@ -104,9 +103,28 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
     return true
 }
 
+function typeById(channelId:string) {
+    if (channelId === CONFIG.senate.channelId) {
+        return "senate"
+    } if (channelId == CONFIG.forum.channelId) {
+        return "forum"
+    } else {
+        console.log (`typeById failed to determine the type of this channel: '${channelId}'`)
+        return "failed"
+    }
+}
+
 async function motion(interaction: ChatInputCommandInteraction) {
-    const type: string = interaction.options.getString('type', true);
+    const type: string = interaction.options.getString("type") ?? typeById(interaction.channelId);
     const content: string = interaction.options.getString('content', true)
+
+    if (type == "failed") {
+        await interaction.reply({
+            content: "**Failed to automatically determine channel type! Please manually specify it!**",
+            flags: MessageFlags.Ephemeral
+        })
+        return
+    }
 
     const motionChannelId = CONFIG[type].channelId
     const motionChannel = await client.channels.fetch(motionChannelId)
