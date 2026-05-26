@@ -103,13 +103,13 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
     return true
 }
 
-function typeById(channelId:string) {
+function typeById(channelId: string) {
     if (channelId === CONFIG.senate.channelId) {
         return "senate"
     } if (channelId == CONFIG.forum.channelId) {
         return "forum"
     } else {
-        console.log (`typeById failed to determine the type of this channel: '${channelId}'`)
+        console.log(`typeById failed to determine the type of this channel: '${channelId}'`)
         return "failed"
     }
 }
@@ -160,19 +160,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     const { commandName } = interaction as ChatInputCommandInteraction;
 
-    if ([CONFIG.senate.channelId, CONFIG.forum.channelId].includes(interaction.channelId)) {
-        if (commandName === "motion") {
-            motion(interaction)
-        };
-        if (commandName === "test") {
-            await interaction.reply(`She testing on my <@${client.user?.id}> till I reply`)
-        };
-    } else {
+    if (![CONFIG.senate.channelId, CONFIG.forum.channelId].includes(interaction.channelId)) {
         await interaction.reply({
             content: `I don't operate in this channel, I'm limited to <#${CONFIG.senate.channelId}> and <#${CONFIG.forum.channelId}>`,
             flags: MessageFlags.Ephemeral
         });
+        return
     }
+
+    switch (commandName) {
+        case "motion":
+            motion(interaction)
+            break;
+
+        case "test":
+            await interaction.reply(`She testing on my <@${client.user?.id}> till I reply`)
+            break;
+
+        default:
+            await interaction.reply({
+                content: "**Unknown command!**",
+                flags: MessageFlags.Ephemeral
+            });
+            break;
+    }
+
 });
 
 client.login(BOT_TOKEN);
