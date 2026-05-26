@@ -7,7 +7,10 @@ import {
     SlashCommandBuilder,
     ChatInputCommandInteraction,
     MessageFlags,
-    TextChannel
+    TextChannel,
+    ButtonBuilder,
+    ButtonStyle,
+    ActionRowBuilder
 } from "discord.js";
 import { file } from "bun";
 import { Database } from "bun:sqlite";
@@ -130,6 +133,32 @@ function typeById(channelId: string) {
     }
 }
 
+function voteButtons(votingOpen: boolean, abstain: boolean) {
+    const forButton = new ButtonBuilder()
+        .setCustomId("for")
+        .setLabel("Vote For")
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(votingOpen ? false : true);
+    
+    const againstButton = new ButtonBuilder()
+        .setCustomId("against")
+        .setLabel("Vote Against")
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(votingOpen ? false : true);
+
+    const abstainButton = new ButtonBuilder()
+        .setCustomId("abstain")
+        .setLabel("Abstain")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(votingOpen ? false : true);
+    
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+        forButton,
+        againstButton,
+        ...(abstain ? [abstainButton] : [])
+    );
+}
+
 async function motion(interaction: ChatInputCommandInteraction) {
     const type: string = interaction.options.getString("type") ?? typeById(interaction.channelId);
     const content: string = interaction.options.getString('content', true)
@@ -156,7 +185,11 @@ async function motion(interaction: ChatInputCommandInteraction) {
         if (
             saveNewMotion(motionId, type, content, interaction)
         ) {
-            await motionChannel.send(`<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`)
+            const abstain = type === "senate" ? true : false;
+            await motionChannel.send({
+                content: `<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`,
+                components: [ voteButtons(false, abstain) ]
+            })
             await interaction.reply({
                 content: `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`,
                 flags: MessageFlags.Ephemeral
