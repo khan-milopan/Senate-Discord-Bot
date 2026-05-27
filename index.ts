@@ -20,8 +20,6 @@ const BOT_TOKEN = await file("./TOKEN").text();
 const BOT_APPLICATION_ID = await file("./APPLICATION_ID").text();
 const CONFIG = JSON.parse(await file("config.json").text());
 
-const issueMsg = "**Sorry, it seems that there was an issue 😦**"
-
 const motionsDb = new Database("./motions.db");
 
 
@@ -164,16 +162,29 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
 await rest.put(Routes.applicationCommands(BOT_APPLICATION_ID), { body: commands });
-
+interface Motion {
+    id: number; // or string, depending on your schema
+}
 function updateActiveMotions() {
-    const activeMotions = motionsDb.query("SELECT id FROM active_motions").all();
+    const activeMotions = motionsDb.query("SELECT id FROM active_motions").all() as { id: number }[];
     return activeMotions.map(item => item.id);
 };
 let activeMotions = updateActiveMotions();
-console.log(activeMotions);
+// console.log(activeMotions);
 
 
 // Commands and interactions bellow
+
+async function qReply( // Quick Reply
+    interaction: ChatInputCommandInteraction,
+    custom?: string,
+    hidden?: boolean
+) {
+    await interaction.reply({
+        content: `${custom ?? "**Sorry, it seems that there was an issue 😦**"}`,
+        ...(hidden !== false && { flags: MessageFlags.Ephemeral })
+    });
+}
 
 function hasher(whatToHash: any, sliceNum: number) {
     const hashed = new Bun.CryptoHasher('sha256')
@@ -258,15 +269,12 @@ function voteButtons(votingOpen: boolean, abstain: boolean) {
     );
 }
 
-async function motion(interaction: ChatInputCommandInteraction) {
+async function cmdMotion(interaction: ChatInputCommandInteraction) {
     const type: string = interaction.options.getString("type") ?? typeById(interaction.channelId);
     const content: string = interaction.options.getString('content', true)
 
     if (type == "failed") {
-        await interaction.reply({
-            content: "**Failed to automatically determine channel type! Please manually specify it!**",
-            flags: MessageFlags.Ephemeral
-        })
+        qReply(interaction, "**Failed to automatically determine channel type! Please manually specify it!**")
         return
     }
 
@@ -275,10 +283,7 @@ async function motion(interaction: ChatInputCommandInteraction) {
 
     if (!motionChannel || !(motionChannel instanceof TextChannel)) {
         console.log(`Failed to send a motion!\n    by '${interaction.user.displayName}' (${interaction.user.id})\n    to '${type}' type channel ('${motionChannelId}')\n    containing '${content}'`)
-        await interaction.reply({
-            content: issueMsg,
-            flags: MessageFlags.Ephemeral
-        })
+        qReply(interaction)
     } else {
         const motionId = `${hasher(`${content}${interaction.channelId}${interaction.user.id}`, 8)}-${interaction.createdTimestamp}`
         if (
@@ -289,17 +294,33 @@ async function motion(interaction: ChatInputCommandInteraction) {
                 content: `<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`,
                 components: [voteButtons(false, abstain)]
             })
-            await interaction.reply({
-                content: `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`,
-                flags: MessageFlags.Ephemeral
-            })
+            qReply(interaction, `**Successfully started the motion!**\n-# Go to <#${motionChannelId}>`)
         } else (
-            await interaction.reply({
-                content: issueMsg,
-                flags: MessageFlags.Ephemeral
-            })
+            qReply(interaction)
         )
 
+    }
+}
+
+async function cmdQuery(interaction: ChatInputCommandInteraction) {
+    const subcommand = interaction.options.getSubcommand()
+
+    switch (subcommand) {
+        case "active":
+            qReply(interaction, "active")
+            break;
+
+        case "archived":
+            qReply(interaction, "archived")
+            break;
+
+        case "id":
+            qReply(interaction, "id")
+            break;
+
+        default:
+            qReply(interaction)
+            return
     }
 }
 
@@ -307,29 +328,28 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName } = interaction as ChatInputCommandInteraction;
-
-    if (![CONFIG.senate.channelId, CONFIG.forum.channelId].includes(interaction.channelId)) {
-        await interaction.reply({
-            content: `I don't operate in this channel, I'm limited to <#${CONFIG.senate.channelId}> and <#${CONFIG.forum.channelId}>`,
-            flags: MessageFlags.Ephemeral
-        });
-        return
-    }
+    // interaction.options.getSubcommandGroup();
+    // interaction.options.getSubcommand();
 
     switch (commandName) {
         case "motion":
-            motion(interaction)
+            if (![CONFIG.senate.channelId, CONFIG.forum.channelId].includes(interaction.channelId)) {
+                qReply(interaction, `This command is limited to <#${CONFIG.senate.channelId}> and <#${CONFIG.forum.channelId}>`)
+                return
+            }
+            cmdMotion(interaction)
+            break;
+
+        case "query":
+            cmdQuery(interaction)
             break;
 
         case "test":
-            await interaction.reply(`She testing on my <@${client.user?.id}> till I reply`)
+            qReply(interaction, `She testing on my <@${client.user?.id}> till I reply`, false)
             break;
 
         default:
-            await interaction.reply({
-                content: "**Unknown command!**",
-                flags: MessageFlags.Ephemeral
-            });
+            await qReply(interaction, "**Unknown command!**")
             break;
     }
 
