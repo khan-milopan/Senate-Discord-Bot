@@ -13,15 +13,76 @@ import {
     ActionRowBuilder,
     Options
 } from "discord.js";
-import { file } from "bun";
+import { stat, mkdir, open, readFile } from "fs/promises";
 import { Database } from "bun:sqlite";
 
-const BOT_TOKEN = await file("./TOKEN").text();
-const BOT_APPLICATION_ID = await file("./APPLICATION_ID").text();
-const CONFIG = JSON.parse(await file("config.json").text());
+const CONFIG = JSON.parse(await readFile("config.json", "utf-8"));
+
+const pathList = [
+    {
+        "path": "./sensitive",
+        "type": "dir",
+        "req": "none"
+    },
+    {
+        "path": "./sensitive/APPLICATION_ID",
+        "type": "file",
+        "req": "none"
+    },
+    {
+        "path": "./sensitive/TOKEN",
+        "type": "file",
+        "req": "none"
+    },
+    {
+        "path": "./sensitive/WEBHOOK_URL",
+        "type": "file",
+        "req": "CONFIG.notifications.enable"
+    }
+]
+
+let wasSensitivePerfect: boolean = true;
+
+for (const e of pathList) {
+
+    if (e.req !== "none") {
+        if (!eval(e.req)) {
+            continue;
+        }
+    }
+
+    if (!(await (async () => {
+        try {
+            const pathStat = await stat(e.path);
+            if (pathStat.isDirectory()) return "dir";
+            if (pathStat.isFile()) return "file";
+        } catch {
+            return "";
+        }
+    })() === e.type)) {
+        wasSensitivePerfect = false
+        switch (e.type) {
+            case "dir":
+                await mkdir(e.path, { recursive: true });
+                break;
+
+            default:
+                const f = await open(e.path, "a");
+                f.close()
+                break;
+        }
+    }
+}
+
+if (!wasSensitivePerfect) {
+    console.log("Created the missing 'sensitive' files, fill them before proceeding")
+    process.exit(1)
+}
+
+const BOT_TOKEN = await readFile("./sensitive/TOKEN", "utf-8");
+const BOT_APPLICATION_ID = await readFile("./sensitive/APPLICATION_ID", "utf-8");
 
 const motionsDb = new Database("./motions.db");
-
 
 motionsDb.run(`
     CREATE TABLE IF NOT EXISTS active_motions (

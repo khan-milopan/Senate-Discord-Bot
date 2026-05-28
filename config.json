@@ -7,5 +7,9 @@
         "roleId": "1508174314581786644",
         "channelId": "1508173584236024039"
     },
+    "notifications": {
+        "enable": true,
+        "notifiedRoleId": "1509357661966041098"
+    },
     "test": true
 }
