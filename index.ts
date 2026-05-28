@@ -35,6 +35,7 @@ motionsDb.run(`
         votes       TEXT NOT NULL
     )
 `);
+
 motionsDb.run(`
     CREATE TABLE IF NOT EXISTS archived_motions (
         id          TEXT PRIMARY KEY,
@@ -184,22 +185,7 @@ async function qReply( // Quick Reply
         content: `${custom ?? "**Sorry, it seems that there was an issue 😦**"}`,
         ...(hidden !== false && { flags: MessageFlags.Ephemeral })
     });
-}
-
-function hasher(whatToHash: any, sliceNum: number) {
-    const hashed = new Bun.CryptoHasher('sha256')
-        .update(whatToHash)
-        .digest('hex')
-        .slice(0, sliceNum);
-
-    return `${hashed}`;
-}
-
-async function jsonWrite(path: string, object: object) {
-    const objectJson = JSON.parse(await file(path).text())
-    objectJson.push(object);
-    await Bun.write(path, JSON.stringify(object, null, 2))
-}
+};
 
 function saveNewMotion(motionId: string, motionType: string, motionContent: string, interaction: ChatInputCommandInteraction) {
 
@@ -230,18 +216,7 @@ function saveNewMotion(motionId: string, motionType: string, motionContent: stri
     )
 
     return true
-}
-
-function typeById(channelId: string) {
-    if (channelId === CONFIG.senate.channelId) {
-        return "senate"
-    } if (channelId == CONFIG.forum.channelId) {
-        return "forum"
-    } else {
-        console.log(`typeById failed to determine the type of this channel: '${channelId}'`)
-        return "failed"
-    }
-}
+};
 
 function voteButtons(votingOpen: boolean, abstain: boolean) {
     const forButton = new ButtonBuilder()
@@ -267,10 +242,17 @@ function voteButtons(votingOpen: boolean, abstain: boolean) {
         againstButton,
         ...(abstain ? [abstainButton] : [])
     );
-}
+};
 
 async function cmdMotion(interaction: ChatInputCommandInteraction) {
-    const type: string = interaction.options.getString("type") ?? typeById(interaction.channelId);
+    const type: string = interaction.options.getString("type") ?? (
+        () => {
+            if (interaction.channelId === CONFIG.senate.channelId) return "senate";
+            if (interaction.channelId === CONFIG.forum.channelId) return "forum";
+            console.log(`typeById failed to determine the type of channel: '${interaction.channelId}'`);
+            return "failed";
+        }
+    )();
     const content: string = interaction.options.getString('content', true)
 
     if (type == "failed") {
@@ -285,10 +267,14 @@ async function cmdMotion(interaction: ChatInputCommandInteraction) {
         console.log(`Failed to send a motion!\n    by '${interaction.user.displayName}' (${interaction.user.id})\n    to '${type}' type channel ('${motionChannelId}')\n    containing '${content}'`)
         qReply(interaction)
     } else {
-        const motionId = `${hasher(`${content}${interaction.channelId}${interaction.user.id}`, 8)}-${interaction.createdTimestamp}`
-        if (
-            saveNewMotion(motionId, type, content, interaction)
-        ) {
+        const hashed = new Bun.CryptoHasher('sha256')
+            .update(`${content}${interaction.channelId}${interaction.user.id}`)
+            .digest('hex')
+            .slice(0, 8);
+
+        const motionId = `${hashed}-${interaction.createdTimestamp}`
+
+        if (saveNewMotion(motionId, type, content, interaction)) {
             const abstain = type === "senate" ? true : false;
             await motionChannel.send({
                 content: `<@${interaction.user.id}> started a motion: ' ${content} '\n-# Motion ID: ${motionId}`,
@@ -300,7 +286,7 @@ async function cmdMotion(interaction: ChatInputCommandInteraction) {
         )
 
     }
-}
+};
 
 async function cmdQuery(interaction: ChatInputCommandInteraction) {
     const subcommand = interaction.options.getSubcommand()
@@ -322,7 +308,7 @@ async function cmdQuery(interaction: ChatInputCommandInteraction) {
             qReply(interaction)
             return
     }
-}
+};
 
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
