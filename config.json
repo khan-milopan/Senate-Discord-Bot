@@ -9,6 +9,7 @@
     },
     "notifications": {
         "enable": true,
+        "webhookName": "Senate Notify",
         "notifiedRoleId": "1509357661966041098"
     },
     "test": true

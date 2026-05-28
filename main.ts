@@ -15,6 +15,7 @@ import {
 } from "discord.js";
 import { stat, mkdir, open, readFile } from "fs/promises";
 import { clientSetup } from "./bot";
+import { webhookSend } from "./webhook";
 
 const CONFIG: any = JSON.parse(await readFile("config.json", "utf-8"));
 
@@ -81,6 +82,9 @@ if (!wasSensitivePerfect) {
 
 const BOT_TOKEN = await readFile("./sensitive/TOKEN", "utf-8");
 const BOT_APPLICATION_ID = await readFile("./sensitive/APPLICATION_ID", "utf-8");
+const WEBHOOK_URL = CONFIG.notifications.enable
+    ? await readFile("./sensitive/WEBHOOK_URL", "utf-8")
+    : "none";
 
 const commands = [
     new SlashCommandBuilder()
@@ -193,6 +197,6 @@ const client = new Client({
     ],
 });
 
-clientSetup(client, CONFIG);
+clientSetup(client, CONFIG, WEBHOOK_URL);
 
 await client.login(BOT_TOKEN)

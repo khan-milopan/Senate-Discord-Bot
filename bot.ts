@@ -11,8 +11,10 @@ import {
     ButtonBuilder,
     ButtonStyle,
     ActionRowBuilder,
-    Options
+    Options,
+    WebhookClient
 } from "discord.js";
+import { webhookInit, webhookSend } from "./webhook";
 import { Database } from "bun:sqlite";
 
 const motionsDb = new Database("./motions.db");
@@ -143,9 +145,25 @@ async function cmdQuery(interaction: ChatInputCommandInteraction) {
     }
 };
 
-export function clientSetup(client: Client, CONFIG: any) {
+export function clientSetup(
+    client: Client,
+    CONFIG: any,
+    WEBHOOK_URL: string
+) {
     client.once(Events.ClientReady, (c) => {
         console.log(`Logged in as ${c.user.tag}`);
+
+        if (CONFIG.notifications.enable) {
+            const webhookAvatar = client.user?.avatarURL({ size: 4096, extension: "png" })
+                ? client.user.defaultAvatarURL
+                : undefined;
+            webhookInit(
+                webhookAvatar,
+                CONFIG.notifications,
+                WEBHOOK_URL
+            )
+        }
+        webhookSend("The Bot is alive!")
     });
 
     async function cmdMotion(interaction: ChatInputCommandInteraction) {
